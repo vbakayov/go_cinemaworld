@@ -66,6 +66,8 @@ func CloseDbConnection()  {
 }
 
 func CreateTablesIfNotExists()  {
+	var query [9]*string
+
 	createMovieType :=	`do 
                          $$
                          begin         
@@ -74,6 +76,7 @@ func CreateTablesIfNotExists()  {
                            END IF;
                          end
 						 $$`
+	query[0] = &createMovieType
 
 	createPGType :=	`do 
                      $$
@@ -83,8 +86,7 @@ func CreateTablesIfNotExists()  {
                        END IF;
                      end
 					 $$`
-
-
+	query[1] = &createPGType
 
 	createUsers :=`CREATE TABLE IF NOT EXISTS "users" (
 				  id SERIAL PRIMARY KEY, 
@@ -93,6 +95,7 @@ func CreateTablesIfNotExists()  {
 		          birthday DATE,
 		          email TEXT UNIQUE NOT NULL
 				  )`
+	query[2] = &createUsers
 
 	theater :=`CREATE TABLE IF NOT EXISTS theater (
 				  id SERIAL PRIMARY KEY,
@@ -101,6 +104,7 @@ func CreateTablesIfNotExists()  {
 				  floor INT,
 		          capacity INT
 				  )`
+	query[3] = &theater
 
 	movie :=`CREATE TABLE IF NOT EXISTS movie (
 				  id SERIAL PRIMARY KEY, 
@@ -109,7 +113,7 @@ func CreateTablesIfNotExists()  {
 				  pg_type pg_type_movie,
 		          runtime INT
 				  )`
-
+	query[4] = &movie
 
 	createSeats :=`CREATE TABLE IF NOT EXISTS seat (
 				  id         SERIAL PRIMARY KEY, 
@@ -117,6 +121,7 @@ func CreateTablesIfNotExists()  {
 				  row        INT,
 				  number     INT
 				  )`
+	query[5] = &createSeats
 
 	createReservation :=`CREATE TABLE IF NOT EXISTS reservation (
 				  id             SERIAL PRIMARY KEY, 
@@ -126,6 +131,7 @@ func CreateTablesIfNotExists()  {
 				  paid           BOOLEAN,
 				  active         BOOLEAN
 				  )`
+	query[6] = &createReservation
 
 	createReservedSeats :=`CREATE TABLE IF NOT EXISTS reserve_seats (
 				  id             SERIAL PRIMARY KEY, 
@@ -133,7 +139,7 @@ func CreateTablesIfNotExists()  {
 				  reservation_id INT REFERENCES reservation(id),
 				  screeing_id    INT REFERENCES screening(id)
 				  )`
-
+	query[7] = &createReservedSeats
 
 
 	screening :=`CREATE TABLE IF NOT EXISTS screening (
@@ -144,54 +150,16 @@ func CreateTablesIfNotExists()  {
 				  time            time,            
 		          screening_type  screening_type 
 				  )`
+	query[8] = &screening
 
 
-
-
-	_, err := db.Exec(createMovieType)
-	if err != nil {
-		panic(err)
-	}
-
-
-
-	_, err = db.Exec(createPGType)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = db.Exec(createUsers)
-	if err != nil {
-		panic(err)
-	}
-	_, err = db.Exec(movie)
-	if err != nil {
-		panic(err)
-	}
-
-
-	_, err = db.Exec(theater)
-	if err != nil {
-		panic(err)
-	}
-	_, err = db.Exec(screening)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = db.Exec(createReservation)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = db.Exec(createSeats)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = db.Exec(createReservedSeats)
-	if err != nil {
-		panic(err)
+	for  i := 0; i < 9; i++ {
+		fmt.Printf("Executing query number %d = %s\n", i, *query[i] )
+		_, err := db.Exec(*query[i])
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Success!" )
 	}
 }
 
