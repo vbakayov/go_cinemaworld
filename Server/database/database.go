@@ -66,6 +66,26 @@ func CloseDbConnection()  {
 }
 
 func CreateTablesIfNotExists()  {
+	createMovieType :=	`do 
+                         $$
+                         begin         
+						   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'screening_type') THEN
+					         CREATE TYPE screening_type AS ENUM ('2D', '3D', '4D');
+                           END IF;
+                         end
+						 $$`
+
+	createPGType :=	`do 
+                     $$
+                     begin         
+                       IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'pg_type_movie') THEN
+                         CREATE TYPE pg_type_movie AS ENUM ('G', '12', '15','18');
+                       END IF;
+                     end
+					 $$`
+
+
+
 	createUsers :=`CREATE TABLE IF NOT EXISTS "users" (
 				  id SERIAL PRIMARY KEY, 
 				  first_name TEXT,
@@ -86,27 +106,61 @@ func CreateTablesIfNotExists()  {
 				  id SERIAL PRIMARY KEY, 
 				  movie_title TEXT UNIQUE NOT NULL,
 				  movie_year INT,
-		          movie_time INT
+				  pg_type pg_type_movie,
+		          runtime INT
 				  )`
 
 
-	schedule :=`CREATE TABLE IF NOT EXISTS schedule (
-				  id SERIAL PRIMARY KEY, 
-				  id_theater INT  REFERENCES theater(id),
-				  movie_year INT,
-		          movie_time INT
+	createSeats :=`CREATE TABLE IF NOT EXISTS seat (
+				  id         SERIAL PRIMARY KEY, 
+				  theater_id INT  REFERENCES theater(id),
+				  row        INT,
+				  number     INT
+				  )`
+
+	createReservation :=`CREATE TABLE IF NOT EXISTS reservation (
+				  id             SERIAL PRIMARY KEY, 
+				  screeing_id    INT REFERENCES screening(id),
+				  user_id        INT REFERENCES users(id),
+				  reserved       BOOLEAN,
+				  paid           BOOLEAN,
+				  active         BOOLEAN
+				  )`
+
+	createReservedSeats :=`CREATE TABLE IF NOT EXISTS reserve_seats (
+				  id             SERIAL PRIMARY KEY, 
+				  seat_id        INT REFERENCES seat(id),
+				  reservation_id INT REFERENCES reservation(id),
+				  screeing_id    INT REFERENCES screening(id)
 				  )`
 
 
 
-	booking :=`CREATE TABLE IF NOT EXISTS booking (
-				  id SERIAL PRIMARY KEY, 
-				  id_person INT  REFERENCES  "user"(id),
-				  id_schedule INT REFERENCES schedule(id),
-		          place INT
+	screening :=`CREATE TABLE IF NOT EXISTS screening (
+				  id              SERIAL PRIMARY KEY, 
+				  id_movie        INT  REFERENCES movie(id),
+				  id_theater      INT  REFERENCES theater(id),
+				  date            date,    --could be timestamp
+				  time            time,            
+		          screening_type  screening_type 
 				  )`
 
-	_, err := db.Exec(createUsers)
+
+
+
+	_, err := db.Exec(createMovieType)
+	if err != nil {
+		panic(err)
+	}
+
+
+
+	_, err = db.Exec(createPGType)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec(createUsers)
 	if err != nil {
 		panic(err)
 	}
@@ -114,18 +168,86 @@ func CreateTablesIfNotExists()  {
 	if err != nil {
 		panic(err)
 	}
+
+
 	_, err = db.Exec(theater)
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec(booking)
+	_, err = db.Exec(screening)
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec(schedule)
+
+	_, err = db.Exec(createReservation)
 	if err != nil {
 		panic(err)
 	}
+
+	_, err = db.Exec(createSeats)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec(createReservedSeats)
+	if err != nil {
+		panic(err)
+	}
+}
+
+
+func RunProvisioning(){
+	provisioningQueryMovies :=	`
+							 INSERT INTO movie (movie_title,movie_year,pg_type, runtime)
+							 VALUES 
+							 ('Spider-Man: Far From Home', 2019,'G',138),
+							 ('Fast & Furious: Hobbs & Shaw', 2019,'12',134),
+							 ('The Lion King', 2019,'G',138),
+							 ('Toy Story 4', 2019,'G',138),
+							 ('Once Upon A Time In Hollywood', 2019,'18',161),
+							 ('Scary Stories To Tell In The Dark: Unlimited Screening', 2019,'15',138),
+							 ('Anabel Comes Home', 2019,'15',106);
+							`
+
+	_, err := db.Exec(provisioningQueryMovies)
+
+	if err != nil {
+		fmt.Println(fmt.Errorf("error during provisioning of the movies table", err))
+	}
+
+	provisioningQueryTheater :=	`
+							 INSERT INTO theater ("name", "rows", floor,capacity)
+							 VALUES 
+							 ('The Pleasure Room', 4,1,100),
+							 ('Think Twice Before Entering', 6,1,120),
+							 ('Room 66', 6,2,60),
+							 ('Basic', 6,10,160)
+							`
+
+	_, err = db.Exec(provisioningQueryTheater)
+
+	if err != nil {
+		fmt.Println(fmt.Errorf("error during provisioning the theather table", err))
+	}
+
+
+
+
+	provisioningQueryScreening :=	`
+							 INSERT INTO screening (id_movie, id_theater,date,"time",screening_type)
+							 VALUES 
+							 (1, 2,'10-10-2020', '15:30','2D'),
+							 (2, 3,'10-10-2020', '15:30','3D')
+						
+							`
+
+	_, err = db.Exec(provisioningQueryScreening)
+
+	if err != nil {
+		fmt.Println(fmt.Errorf("error during provisioning the schedule table", err))
+	}
+
+
 }
 
 func InsertUser(firstName string, lastName string, date string, email string) (string, error)  {

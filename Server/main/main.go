@@ -12,6 +12,7 @@ func main() {
 
 	database.InitConnection()
 	database.CreateTablesIfNotExists()
+	database.RunProvisioning()
 	//
 	//gin.SetMode(gin.ReleaseMode)
 	router := Middleware.SetupRouter()
