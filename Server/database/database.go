@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"strconv"
 )
 
 var (
@@ -15,11 +16,23 @@ var (
 
 
 const (
-	sqlStatementInsert string = `
+	sqlStatementInsertUser string = `
 	INSERT INTO "users" (first_name, last_name,birthday, email)
 	VALUES ($1, $2, $3, $4)
 	RETURNING id`
+	sqlStatementInsertTheater string = `
+	INSERT INTO  theater("name", "rows",floor, capacity)
+	VALUES ($1, $2, $3, $4)
+	RETURNING id`
 )
+type Movie struct {
+	ID           int
+	Movie_title  string
+	Movie_year   int
+	Pg_type      string
+	Runtime      int
+}
+
 
 type User struct {
 	ID        int
@@ -99,7 +112,7 @@ func CreateTablesIfNotExists()  {
 
 	theater :=`CREATE TABLE IF NOT EXISTS theater (
 				  id SERIAL PRIMARY KEY,
-				  name TEXT, 
+				  name TEXT UNIQUE NOT NULL, 
 				  rows INT,
 				  floor INT,
 		          capacity INT
@@ -123,6 +136,17 @@ func CreateTablesIfNotExists()  {
 				  )`
 	query[5] = &createSeats
 
+	screening :=`CREATE TABLE IF NOT EXISTS screening (
+				  id              SERIAL PRIMARY KEY, 
+				  id_movie        INT  REFERENCES movie(id),
+				  id_theater      INT  REFERENCES theater(id),
+				  date            date,    --could be timestamp
+				  time            time,            
+		          screening_type  screening_type,
+                  unique (id_movie, id_theater, date, time)
+				  )`
+	query[6] = &screening
+
 	createReservation :=`CREATE TABLE IF NOT EXISTS reservation (
 				  id             SERIAL PRIMARY KEY, 
 				  screeing_id    INT REFERENCES screening(id),
@@ -131,7 +155,7 @@ func CreateTablesIfNotExists()  {
 				  paid           BOOLEAN,
 				  active         BOOLEAN
 				  )`
-	query[6] = &createReservation
+	query[7] = &createReservation
 
 	createReservedSeats :=`CREATE TABLE IF NOT EXISTS reserve_seats (
 				  id             SERIAL PRIMARY KEY, 
@@ -139,18 +163,9 @@ func CreateTablesIfNotExists()  {
 				  reservation_id INT REFERENCES reservation(id),
 				  screeing_id    INT REFERENCES screening(id)
 				  )`
-	query[7] = &createReservedSeats
+	query[8] = &createReservedSeats
 
 
-	screening :=`CREATE TABLE IF NOT EXISTS screening (
-				  id              SERIAL PRIMARY KEY, 
-				  id_movie        INT  REFERENCES movie(id),
-				  id_theater      INT  REFERENCES theater(id),
-				  date            date,    --could be timestamp
-				  time            time,            
-		          screening_type  screening_type 
-				  )`
-	query[8] = &screening
 
 
 	for  i := 0; i < 9; i++ {
@@ -164,7 +179,11 @@ func CreateTablesIfNotExists()  {
 }
 
 
-func RunProvisioning(){
+func RunProvisioning(provision bool){
+	if provision != true{
+		fmt.Println("Provisioning not required. Skipping....")
+		return
+	}
 	provisioningQueryMovies :=	`
 							 INSERT INTO movie (movie_title,movie_year,pg_type, runtime)
 							 VALUES 
@@ -221,9 +240,7 @@ func RunProvisioning(){
 func InsertUser(firstName string, lastName string, date string, email string) (string, error)  {
 	InitConnection()
 	id := 0
-	fmt.Print("Hereee2")
-	fmt.Println("parameters are", firstName,lastName,email,date)
-	if insert := db.QueryRow(sqlStatementInsert, firstName,  lastName, date, email).Scan(&id) ; insert != nil {
+	if insert := db.QueryRow(sqlStatementInsertUser, firstName,  lastName, date, email).Scan(&id) ; insert != nil {
 		if pgerr, ok := insert.(*pq.Error); ok {
 			if pgerr.Code == "23505" {
 				return "", errors.New("user with such an email already exists")
@@ -236,26 +253,69 @@ func InsertUser(firstName string, lastName string, date string, email string) (s
 	}
 }
 
-func GetUserForId(){
-	rows, err := db.Query("SELECT id, first_name FROM users LIMIT $1", 10)
+func ListMovies() ([]Movie, error)  {
+	InitConnection()
+
+	rows, err := db.Query("SELECT * FROM movie;")
 	if err != nil {
-		// handle this error better than this
-		panic(err)
+		return nil, err
 	}
+
 	defer rows.Close()
+
+	movies := []Movie{}
 	for rows.Next() {
-		var id int
-		var firstName string
-		err = rows.Scan(&id, &firstName)
+		var movie Movie
+		err = rows.Scan(&movie.ID,&movie.Movie_title, &movie.Movie_year, &movie.Pg_type, &movie.Runtime)
 		if err != nil {
-			// handle this error
-			panic(err)
+			return nil, err
 		}
-		fmt.Println(id, firstName)
+		movies = append(movies,movie)
+		//fmt.Println(movie.Movie_title, movie.Movie_year)
 	}
-	// get any error encountered during iteration
-	err = rows.Err()
-	if err != nil {
-		panic(err)
+	return movies, nil
 	}
-}
+
+func AddTheater(name, rows, floor string)   (string, error) {
+	InitConnection()
+	id := 0
+	floorInt, _ := strconv.ParseInt(rows,10,64)
+	capacity := floorInt*10
+
+	if insert := db.QueryRow(sqlStatementInsertTheater, name, rows,floor, capacity).Scan(&id) ; insert != nil{
+		if insert != nil {
+		return "", insert
+		}
+
+		return fmt.Sprintf("Succesfully inserted %s at index %v", name, id), nil
+	}
+	return "",nil
+	}
+
+
+
+
+
+//func GetUserForId(){
+//	rows, err := db.Query("SELECT id, first_name FROM users LIMIT $1", 10)
+//	if err != nil {
+//		// handle this error better than this
+//		panic(err)
+//	}
+//	defer rows.Close()
+//	for rows.Next() {
+//		var id int
+//		var firstName string
+//		err = rows.Scan(&id, &firstName)
+//		if err != nil {
+//			// handle this error
+//			panic(err)
+//		}
+//		fmt.Println(id, firstName)
+//	}
+//	// get any error encountered during iteration
+//	err = rows.Err()
+//	if err != nil {
+//		panic(err)
+//	}
+//}

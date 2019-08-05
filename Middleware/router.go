@@ -10,9 +10,9 @@ func SetupRouter() *gin.Engine {
 
 	v1 := router.Group("api/v1")
 	{
-		v1.GET("/instructions", app.CreateUser)
+		v1.GET("/movies", app.ListAllMovies)
 		v1.POST("/create_user", app.CreateUser)
-		v1.PUT("/instructions/:id", app.UpdateInstruction)
+		v1.POST("/add_theater", app.AddTheater)
 		v1.DELETE("/instructions/:id", app.DeleteInstruction)
 	}
 

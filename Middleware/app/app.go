@@ -11,9 +11,17 @@ import (
 type User struct {
 	FirstName    string
 	LastName     string
-	Birthday      string
-	Email         string
+	Birthday     string
+	Email        string
 }
+
+// Bindings from and to JSON
+type Theater struct {
+	Name    string
+	Rows     string
+	Floor     string
+}
+
 
 
 func GetUserForId(c *gin.Context) {
@@ -48,6 +56,38 @@ func CreateUser(c *gin.Context) {
 		c.JSON(500, err.Error())
 	}
 
+
+}
+
+func AddTheater(c *gin.Context) {
+	dataRequest, _ := c.GetRawData()
+
+	var data *Theater
+	err := json.Unmarshal(dataRequest,&data)
+	if err := json.Unmarshal(dataRequest,data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := database.AddTheater(data.Name,data.Rows, data.Floor)
+	if err == nil {
+
+		c.JSON(201, response)
+	} else {
+		c.JSON(500, err.Error())
+	}
+
+
+
+}
+
+func ListAllMovies(c *gin.Context){
+	content, err := database.ListMovies()
+	if err == nil {
+		c.JSON(200, content)
+	} else {
+		c.JSON(500, err.Error())
+	}
 
 }
 

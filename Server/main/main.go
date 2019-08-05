@@ -8,11 +8,9 @@ import (
 
 func main() {
 
-
-
 	database.InitConnection()
 	database.CreateTablesIfNotExists()
-	database.RunProvisioning()
+	database.RunProvisioning(false)
 	//
 	//gin.SetMode(gin.ReleaseMode)
 	router := Middleware.SetupRouter()
