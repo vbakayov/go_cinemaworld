@@ -14,6 +14,12 @@ import (
 	"strconv"
 )
 
+const (
+	Host     = "localhost"
+	Port     =  8080
+	Group    = "/api/v1"
+)
+
 
 type Movie struct {
 	ID           int
@@ -56,17 +62,15 @@ func AddNewTheater(name, rows, floor string) error {
 	m := app.Theater{Name:name,  Rows:rows, Floor: floor}
 	b, err := json.Marshal(m)
 
-	req, err := http.NewRequest("POST", "/api/v1/add_theater", bytes.NewBuffer(b))
-	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.Post("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/add_theater", "application/json", bytes.NewBuffer(b))
 
 	if err != nil {
-		fmt.Println("Post hearteat failed with error %d.", err)
+		fmt.Printf("Post request failed for creating new theater with error %d.", err)
 		return err
 	}
-	resp := httptest.NewRecorder()
-	Router.ServeHTTP(resp, req)
-	if resp.Code != 201 {
-		fmt.Println("/api/v1/add_movie failed with error code %d and response", resp.Code, resp.Body)
+
+	if resp.StatusCode != http.StatusCreated {
+		fmt.Printf("/api/v1/add_movie failed with error code %s and response %s", resp, resp.Body)
 	}else{
 		fmt.Println("Success!")
 	}

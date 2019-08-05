@@ -73,10 +73,6 @@ func InitConnection()  {
 	fmt.Println("Successfully connected!")
 }
 
-func CloseDbConnection()  {
-	defer db.Close()
-
-}
 
 func CreateTablesIfNotExists()  {
 	var query [9]*string
@@ -277,7 +273,6 @@ func ListMovies() ([]Movie, error)  {
 	}
 
 func AddTheater(name, rows, floor string)   (string, error) {
-	InitConnection()
 	id := 0
 	floorInt, _ := strconv.ParseInt(rows,10,64)
 	capacity := floorInt*10
