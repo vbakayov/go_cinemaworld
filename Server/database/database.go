@@ -33,6 +33,12 @@ type Movie struct {
 	Runtime      int
 }
 
+type Theater struct {
+	Name    string
+	Rows     string
+	Floor     string
+}
+
 
 type User struct {
 	ID        int
@@ -265,10 +271,30 @@ func ListMovies() ([]Movie, error)  {
 			return nil, err
 		}
 		movies = append(movies,movie)
-		//fmt.Println(movie.Movie_title, movie.Movie_year)
 	}
 	return movies, nil
 	}
+
+func ListTheaters() ([]Theater, error)  {
+
+	rows, err := db.Query("SELECT name,rows,floor FROM theater;")
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	theaters := []Theater{}
+	for rows.Next() {
+		var theater Theater
+		err = rows.Scan(&theater.Name,&theater.Rows, &theater.Floor)
+		if err != nil {
+			return nil, err
+		}
+		theaters = append(theaters, theater)
+	}
+	return theaters, nil
+}
 
 func AddTheater(name, rows, floor string)   (string, error) {
 	id := 0

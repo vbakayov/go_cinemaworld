@@ -30,7 +30,50 @@ func init() {
 	registerTheater.Flags().StringP("name", "n", ".", "Set the name of the theater")
 	registerTheater.Flags().StringP("rows", "r", ".", "Set how many rows does it have")
 	registerTheater.Flags().StringP("floor", "f", ".", "Set on which floor it is")
+
+	//register new movie for theater
+	RootCmd.AddCommand(registerMovie)
+	registerMovie.Flags().StringP("movie_title", "t", ".", "Set the title of the movie")
+	registerMovie.Flags().StringP("movie_year", "y", ".", "Set the year released")
+	registerMovie.Flags().StringP("pg_type", "p", ".", "Set the pg type classification")
+	registerMovie.Flags().StringP("runtime", "r", ".", "Set the runtime duration")
+
 }
+
+var registerMovie = &cobra.Command{
+	Use:  "register_movie",
+	Short:"add new movie to the cinema",
+	Long: "add new movie to the cinema",
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		name, err := cmd.Flags().GetString("movie_title")
+		if err != nil {
+			return err
+		}
+
+		rows, err := cmd.Flags().GetString("movie_year")
+		if err != nil {
+			fmt.Println("movie_year was not set... Skipping")
+		}
+
+		floor, err := cmd.Flags().GetString("pg_type")
+		if err != nil {
+			fmt.Println("pg_type was not set... Skipping")
+		}
+
+		fmt.Println(name,rows,floor)
+		err = functions.GetAvailableTheaters()
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+			os.Exit(1)
+		}
+
+		return nil
+	},
+}
+
+
 
 
 var registerTheater = &cobra.Command{

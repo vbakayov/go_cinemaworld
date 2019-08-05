@@ -73,13 +73,54 @@ func AddNewTheater(name, rows, floor string) error {
 	return nil
 
 }
+func GetAvailableTheaters() error {
+
+	resp, err := http.Get("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/theaters")
+
+	if err != nil {
+		fmt.Printf("Get request failed for listing the available theaters with error %d.", err)
+		return err
+	}
+
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("/api/v1/theaters failed with error code %d and response %s", resp.StatusCode, resp)
+	}else
+	{
+		theater := []app.Theater{}
+		data := [][]string{}
+		body, _ := ioutil.ReadAll(resp.Body)
+		err := json.Unmarshal(body,&theater)
+		if err != nil{
+			fmt.Printf(err.Error())
+		}
+		for index, theater := range theater {
+			data = append(data, []string{ strconv.Itoa(index), theater.Name, theater.Rows, theater.Floor})
+		}
+
+
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"ID","Movie Title", "Movie Year", "Pg_type", "Runtime"})
+		table.SetFooter([]string{"Total Movies: " + strconv.Itoa(len(theater)), "", "", "",""}) // Add Footer
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetBorder(false)                                // Set Border to false
+		table.AppendBulk(data)                                // Add Bulk Data
+		table.Render()
+
+
+	}
+	return nil
+
+
+
+}
 
 func GetAvailableMovies() error {
 
 	resp, err := http.Get("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/movies")
 
 	if err != nil {
-		fmt.Printf("Post request failed for creating new theater with error %d.", err)
+		fmt.Printf("Get request failed for listing the available movies with error %d.", err)
 		return err
 	}
 
