@@ -8,8 +8,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware"
 	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware/app"
+	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strconv"
 )
@@ -33,26 +33,22 @@ var Router *gin.Engine
 
 func CreateUser(first_name, last_name, birthday, email string) error {
 
-	m := app.User{FirstName:first_name,  LastName:last_name, Birthday:"10-16-2020", Email: email}
+	m := app.User{FirstName:first_name,  LastName:last_name, Birthday:birthday, Email: email}
 	b, err := json.Marshal(m)
 
+	resp, err := http.Post("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/create_user", "application/json", bytes.NewBuffer(b))
 
-	req, err := http.NewRequest("POST", "/api/v1/create_user", bytes.NewBuffer(b))
-	req.Header.Set("Content-Type", "application/json")
 
 	if err != nil {
-		fmt.Println("Post hearteat failed with error %d.", err)
+		fmt.Printf("Post request failed for creating new user with error %d.", err)
 		return err
 	}
 
-	resp := httptest.NewRecorder()
-	Router.ServeHTTP(resp, req)
-
-	if resp.Code != 200 {
-		fmt.Println("/api/v1/instructions failed with error code %d and response", resp.Code, resp.Body)
+	if  resp.StatusCode != http.StatusCreated {
+		fmt.Printf("/api/v1/instructions failed with error code %d and response  %s", resp.StatusCode, resp)
 	}else
 	{
-		fmt.Println(resp.Body)
+		fmt.Println("Success!")
 	}
 	return nil
 }
@@ -70,7 +66,7 @@ func AddNewTheater(name, rows, floor string) error {
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		fmt.Printf("/api/v1/add_movie failed with error code %s and response %s", resp, resp.Body)
+		fmt.Printf("/api/v1/add_movie failed with error code %d and response %s", resp.StatusCode, resp)
 	}else{
 		fmt.Println("Success!")
 	}
@@ -79,23 +75,23 @@ func AddNewTheater(name, rows, floor string) error {
 }
 
 func GetAvailableMovies() error {
-	req, err := http.NewRequest("GET", "/api/v1/movies",nil)
-	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.Get("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/movies")
 
 	if err != nil {
-		fmt.Println("Post hearteat failed with error %d.", err)
+		fmt.Printf("Post request failed for creating new theater with error %d.", err)
 		return err
 	}
 
-	resp := httptest.NewRecorder()
-	Router.ServeHTTP(resp, req)
-	if resp.Code != 200 {
-		fmt.Println("/api/v1/movies failed with error code %d and response", resp.Code, resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("/api/v1/movies failed with error code %d and response %s", resp.StatusCode, resp)
 	}else
 	{
 		movies := []Movie{}
 		data := [][]string{}
-		err := json.Unmarshal(resp.Body.Bytes(),&movies)
+		body, _ := ioutil.ReadAll(resp.Body)
+		err := json.Unmarshal(body,&movies)
 		if err != nil{
 			fmt.Printf(err.Error())
 		}

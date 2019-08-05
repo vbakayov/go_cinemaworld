@@ -50,8 +50,7 @@ func CreateUser(c *gin.Context) {
 
 	content, err := database.InsertUser(data.FirstName,data.LastName, data.Birthday, data.Email)
 	if err == nil {
-
-		c.JSON(200, content)
+		c.JSON(201, content)
 	} else {
 		c.JSON(500, err.Error())
 	}

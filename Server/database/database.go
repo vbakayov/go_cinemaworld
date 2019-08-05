@@ -234,7 +234,6 @@ func RunProvisioning(provision bool){
 }
 
 func InsertUser(firstName string, lastName string, date string, email string) (string, error)  {
-	InitConnection()
 	id := 0
 	if insert := db.QueryRow(sqlStatementInsertUser, firstName,  lastName, date, email).Scan(&id) ; insert != nil {
 		if pgerr, ok := insert.(*pq.Error); ok {
@@ -250,7 +249,6 @@ func InsertUser(firstName string, lastName string, date string, email string) (s
 }
 
 func ListMovies() ([]Movie, error)  {
-	InitConnection()
 
 	rows, err := db.Query("SELECT * FROM movie;")
 	if err != nil {
