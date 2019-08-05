@@ -3,6 +3,7 @@ package functions
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/olekukonko/tablewriter"
@@ -73,43 +74,35 @@ func AddNewTheater(name, rows, floor string) error {
 	return nil
 
 }
-func GetAvailableTheaters() error {
-
+func GetAvailableTheaters() ([]string,error) {
+	data := []string{}
 	resp, err := http.Get("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/theaters")
 
 	if err != nil {
 		fmt.Printf("Get request failed for listing the available theaters with error %d.", err)
-		return err
+		return nil,err
 	}
 
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("/api/v1/theaters failed with error code %d and response %s", resp.StatusCode, resp)
+		return nil, errors.New("response code not as expected 201")
+
 	}else
 	{
-		theater := []app.Theater{}
-		data := [][]string{}
+		theaters := []app.Theater{}
 		body, _ := ioutil.ReadAll(resp.Body)
-		err := json.Unmarshal(body,&theater)
+		err := json.Unmarshal(body,&theaters)
 		if err != nil{
 			fmt.Printf(err.Error())
 		}
-		for index, theater := range theater {
-			data = append(data, []string{ strconv.Itoa(index), theater.Name, theater.Rows, theater.Floor})
+		for _, theater := range theaters {
+			data = append(data, theater.Name +" Floor: " + theater.Floor +" Rows: " + theater.Rows)
 		}
 
 
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"ID","Movie Title", "Movie Year", "Pg_type", "Runtime"})
-		table.SetFooter([]string{"Total Movies: " + strconv.Itoa(len(theater)), "", "", "",""}) // Add Footer
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetBorder(false)                                // Set Border to false
-		table.AppendBulk(data)                                // Add Bulk Data
-		table.Render()
-
-
 	}
-	return nil
+	return data,nil
 
 
 

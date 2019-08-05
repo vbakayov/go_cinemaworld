@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Client/functions"
 	"os"
+	"strings"
 )
 
 var RootCmd = &cobra.Command{
@@ -62,7 +65,27 @@ var registerMovie = &cobra.Command{
 		}
 
 		fmt.Println(name,rows,floor)
-		err = functions.GetAvailableTheaters()
+		data,err := functions.GetAvailableTheaters()
+
+
+		theater := SelecTheather(data)
+
+
+
+		schedule := make(map[string][]string)
+
+		//loop to ask for new entries
+		for {
+			date := inputDate()
+			inputTimes(schedule, date)
+
+			if !IfMoreDates() {
+				break
+			}
+		}
+
+		fmt.Println(theater)
+
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
@@ -73,7 +96,46 @@ var registerMovie = &cobra.Command{
 	},
 }
 
+func IfMoreDates()  bool  {
+	validate := func(input string) error {
+		if input == "y" || input == "n"{
+			return nil
+		}
+		return errors.New("invalid input")
+	}
 
+	prompt := promptui.Prompt{
+		Label:    "Do you want to add more dates to the movie schedule?",
+		Validate: validate,
+	}
+
+	result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+	}
+
+	if result == "y" {
+		return true
+	}else {
+		return false
+	}
+
+
+
+
+}
+
+func inputDate() string  {
+	fmt.Println("InputData called")
+	return ""
+
+}
+
+func inputTimes( schedule map[string][]string, date string)   {
+	schedule["10-16-2020"] = append(schedule["key"], "20:40","20:40")
+
+}
 
 
 var registerTheater = &cobra.Command{
@@ -167,6 +229,26 @@ var registerCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func SelecTheather(data []string) string  {
+
+	prompt := promptui.Select{
+		Label: "Select a Theater you want to screen your movie",
+		Items: data,
+	}
+
+	_, result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+	}
+	chosenTheater := strings.Split(result, " Floor:")[0]
+
+	fmt.Printf("You choose %q\n",chosenTheater) //will be incorrect if the name movie name contains the separator string :(
+
+	return chosenTheater
+
 }
 
 
