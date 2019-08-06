@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/olekukonko/tablewriter"
-	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware"
-	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware/app"
+	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware/structs"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -30,11 +28,10 @@ type Movie struct {
 	Runtime      int
 }
 
-var Router *gin.Engine
 
 func CreateUser(first_name, last_name, birthday, email string) error {
 
-	m := app.User{FirstName:first_name,  LastName:last_name, Birthday:birthday, Email: email}
+	m := structs.User{FirstName:first_name,  LastName:last_name, Birthday:birthday, Email: email}
 	b, err := json.Marshal(m)
 
 	resp, err := http.Post("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/create_user", "application/json", bytes.NewBuffer(b))
@@ -45,8 +42,9 @@ func CreateUser(first_name, last_name, birthday, email string) error {
 		return err
 	}
 
+	body, _ := ioutil.ReadAll(resp.Body)
 	if  resp.StatusCode != http.StatusCreated {
-		fmt.Printf("/api/v1/instructions failed with error code %d and response  %s", resp.StatusCode, resp)
+		fmt.Printf("/api/v1/instructions failed with error code %d and response  %s", resp.StatusCode, body)
 	}else
 	{
 		fmt.Println("Success!")
@@ -56,7 +54,7 @@ func CreateUser(first_name, last_name, birthday, email string) error {
 
 func AddNewTheater(name, rows, floor string) error {
 
-	m := app.Theater{Name:name,  Rows:rows, Floor: floor}
+	m := structs.Theater{Name:name,  Rows:rows, Floor: floor}
 	b, err := json.Marshal(m)
 
 	resp, err := http.Post("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/add_theater", "application/json", bytes.NewBuffer(b))
@@ -66,14 +64,37 @@ func AddNewTheater(name, rows, floor string) error {
 		return err
 	}
 
+	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
-		fmt.Printf("/api/v1/add_movie failed with error code %d and response %s", resp.StatusCode, resp)
+		fmt.Printf("/api/v1/add_movie failed with error code %d and response %s", resp.StatusCode, body)
 	}else{
 		fmt.Println("Success!")
 	}
 	return nil
 
 }
+
+func AddMovie(name string, movieYear string, pgType string, runtime string, theater string, schedule map[string][]string) error  {
+	m := structs.NewMovie{Name:name, MovieYear: movieYear, PgType: pgType,Runtime:runtime, Theater:theater, Schedule:schedule}
+	b, _ := json.Marshal(m)
+
+	resp, err := http.Post("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/add_movie", "application/json", bytes.NewBuffer(b))
+
+	if err != nil {
+		fmt.Printf("Post request failed for adding a new movie with error %d.", err)
+		return err
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusCreated {
+		fmt.Printf("/api/v1/add_movie failed with error code %d and response %s", resp.StatusCode, body)
+	}else{
+		fmt.Printf("Success!  code %d and response %s", resp.StatusCode,body)
+	}
+	return nil
+
+}
+
 func GetAvailableTheaters() ([]string,error) {
 	data := []string{}
 	resp, err := http.Get("http://"+ Host +":"+ strconv.Itoa(Port) + Group + "/theaters")
@@ -83,21 +104,21 @@ func GetAvailableTheaters() ([]string,error) {
 		return nil,err
 	}
 
-
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("/api/v1/theaters failed with error code %d and response %s", resp.StatusCode, resp)
+		body, _ := ioutil.ReadAll(resp.Body)
+		fmt.Printf("/api/v1/theaters failed with error code %d and response %s", resp.StatusCode, body)
 		return nil, errors.New("response code not as expected 201")
 
 	}else
 	{
-		theaters := []app.Theater{}
+		theaters := []structs.Theater{}
 		body, _ := ioutil.ReadAll(resp.Body)
 		err := json.Unmarshal(body,&theaters)
 		if err != nil{
 			fmt.Printf(err.Error())
 		}
 		for _, theater := range theaters {
-			data = append(data, theater.Name +" Floor: " + theater.Floor +" Rows: " + theater.Rows)
+			data = append(data, theater.Name +" PgType: " + theater.Floor +" MovieYear: " + theater.Rows)
 		}
 
 
@@ -119,7 +140,8 @@ func GetAvailableMovies() error {
 
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("/api/v1/movies failed with error code %d and response %s", resp.StatusCode, resp)
+		body, _ := ioutil.ReadAll(resp.Body)
+		fmt.Printf("/api/v1/movies failed with error code %d and response %s", resp.StatusCode, body)
 	}else
 	{
 		movies := []Movie{}
@@ -145,8 +167,4 @@ func GetAvailableMovies() error {
 
 	}
 	return nil
-}
-
-func InitRouter (){
-	Router = Middleware.SetupRouter()
 }

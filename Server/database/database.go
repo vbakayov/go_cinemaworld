@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware/structs"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -24,6 +26,22 @@ const (
 	INSERT INTO  theater("name", "rows",floor, capacity)
 	VALUES ($1, $2, $3, $4)
 	RETURNING id`
+
+	sqlStatementInsertMovie string = `
+	INSERT INTO  movie(movie_title, movie_year,pg_type, runtime)
+	VALUES ($1, $2, $3, $4)
+	RETURNING id`
+
+
+	sqlStatementInsertScreening string =  `
+	INSERT INTO  screening(id_movie, id_theater, date, "time",screening_type)
+	VALUES ($1, $2, $3, $4,$5)
+	RETURNING id`
+
+
+	sqlStatementGetIdForTheater string =  `
+	SELECT ID FROM theater WHERE name = $1; 
+	 `
 )
 type Movie struct {
 	ID           int
@@ -294,6 +312,34 @@ func ListTheaters() ([]Theater, error)  {
 		theaters = append(theaters, theater)
 	}
 	return theaters, nil
+}
+
+func AddMovie(data *structs.NewMovie) (string, error) {
+	fmt.Println("adding a movie called with parameters")
+	idMovie := 0
+	idTheater := 0
+	idScreening := 0
+	year,_:=strconv.Atoi(data.MovieYear)
+	runtime,_:=strconv.Atoi(data.Runtime)
+
+	if insert := db.QueryRow(sqlStatementInsertMovie, data.Name, year, data.PgType, runtime).Scan(&idMovie); insert == nil {
+		for date, times := range data.Schedule {
+			times := strings.Split(times[0], ",")
+			for _, time := range times {
+				 if insert := db.QueryRow(sqlStatementGetIdForTheater, data.Theater).Scan(&idTheater); insert != nil {
+				 	return "", insert
+				 }
+				//well, this multiple inserts should be in a transaction as well as the movie insert to preserve atomicity
+				if insert := db.QueryRow(sqlStatementInsertScreening, idMovie, idTheater, date, time, "2D").Scan(&idScreening); insert != nil {
+					return "", insert
+				}
+			}
+		}
+	} else {
+		return "", insert
+	}
+
+	return "Success!",nil
 }
 
 func AddTheater(name, rows, floor string)   (string, error) {

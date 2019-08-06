@@ -2,31 +2,18 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Server/database"
+	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Middleware/structs"
 	"net/http"
 )
-
-// Bindings from and to JSON
-type User struct {
-	FirstName    string
-	LastName     string
-	Birthday     string
-	Email        string
-}
-
-// Bindings from and to JSON
-type Theater struct {
-	Name    string
-	Rows     string
-	Floor     string
-}
 
 
 func CreateUser(c *gin.Context) {
 	dataRequest, _ := c.GetRawData()
 
-	var data *User
+	var data *structs.User
 	err := json.Unmarshal(dataRequest,&data)
 	if err := json.Unmarshal(dataRequest,data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -43,16 +30,38 @@ func CreateUser(c *gin.Context) {
 
 }
 
+func AddMovie(c *gin.Context)  {
+	request,_ := c.GetRawData()
+
+	var data *structs.NewMovie
+
+	err := json.Unmarshal(request,&data)
+	if err := json.Unmarshal(request,data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := database.AddMovie(data)
+	fmt.Println("Error",response, err)
+	if err == nil {
+
+		c.JSON(201, response)
+	} else {
+		c.JSON(500, err.Error())
+	}
+
+}
+
 func AddTheater(c *gin.Context) {
 	dataRequest, _ := c.GetRawData()
 
-	var data *Theater
+	var data *structs.Theater
 	err := json.Unmarshal(dataRequest,&data)
 	if err := json.Unmarshal(dataRequest,data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
+    //refactor to pass the whole structure
 	response, err := database.AddTheater(data.Name,data.Rows, data.Floor)
 	if err == nil {
 

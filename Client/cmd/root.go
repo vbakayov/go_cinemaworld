@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.infra.hana.ondemand.com/cloudfoundry/go_cinemaworld/Client/functions"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -20,26 +21,26 @@ var RootCmd = &cobra.Command{
 func init() {
 	//add register command
 	RootCmd.AddCommand(registerCmd)
-	registerCmd.Flags().StringP("first_name", "f", ".", "Define your name")
-	registerCmd.Flags().StringP("last_name", "l", ".", "Set your last name")
-	registerCmd.Flags().StringP("email", "e", ".", "Set your email address")
-	registerCmd.Flags().StringP("birthday", "b", ".", "Set your birthday")
+	registerCmd.Flags().StringP("first_name", "f", "", "Define your name")
+	registerCmd.Flags().StringP("last_name", "l", "", "Set your last name")
+	registerCmd.Flags().StringP("email", "e", "", "Set your email address")
+	registerCmd.Flags().StringP("birthday", "b", "", "Set your birthday")
 
 	//list the available movies
 	RootCmd.AddCommand(listMoviesCmd)
 
 	//register new movie theater
 	RootCmd.AddCommand(registerTheater)
-	registerTheater.Flags().StringP("name", "n", ".", "Set the name of the theater")
-	registerTheater.Flags().StringP("rows", "r", ".", "Set how many rows does it have")
-	registerTheater.Flags().StringP("floor", "f", ".", "Set on which floor it is")
+	registerTheater.Flags().StringP("name", "n", "", "Set the name of the theater")
+	registerTheater.Flags().StringP("rows", "r", "", "Set how many rows does it have")
+	registerTheater.Flags().StringP("floor", "f", "", "Set on which floor it is")
 
 	//register new movie for theater
 	RootCmd.AddCommand(registerMovie)
-	registerMovie.Flags().StringP("movie_title", "t", ".", "Set the title of the movie")
-	registerMovie.Flags().StringP("movie_year", "y", ".", "Set the year released")
-	registerMovie.Flags().StringP("pg_type", "p", ".", "Set the pg type classification")
-	registerMovie.Flags().StringP("runtime", "r", ".", "Set the runtime duration")
+	registerMovie.Flags().StringP("movie_title", "t", "", "Set the title of the movie")
+	registerMovie.Flags().StringP("movie_year", "y", "", "Set the year released")
+	registerMovie.Flags().StringP("pg_type", "p", "", "Set the pg type classification")
+	registerMovie.Flags().StringP("runtime", "r", "", "Set the runtime duration")
 
 }
 
@@ -54,23 +55,27 @@ var registerMovie = &cobra.Command{
 			return err
 		}
 
-		rows, err := cmd.Flags().GetString("movie_year")
-		if err != nil {
-			fmt.Println("movie_year was not set... Skipping")
+		movieYear, err := cmd.Flags().GetString("movie_year")
+		if movieYear == "" {
+			fmt.Println("movie year was not set... Skipping")
 		}
 
-		floor, err := cmd.Flags().GetString("pg_type")
-		if err != nil {
-			fmt.Println("pg_type was not set... Skipping")
+		pgType, _ := cmd.Flags().GetString("pg_type")
+		if pgType == "" {
+			fmt.Println("pg type was not set... Skipping")
 		}
 
-		fmt.Println(name,rows,floor)
+		runtime, _ := cmd.Flags().GetString("runtime")
+		if runtime == "" {
+			fmt.Println("runtime was not set... Skipping")
+		}
+
+		fmt.Println("Printing name, movieYear,pgType, runtime")
+		fmt.Println(name, movieYear, pgType, runtime)
 		data,err := functions.GetAvailableTheaters()
 
 
 		theater := SelecTheather(data)
-
-
 
 		schedule := make(map[string][]string)
 
@@ -84,7 +89,7 @@ var registerMovie = &cobra.Command{
 			}
 		}
 
-		fmt.Println(theater)
+		functions.AddMovie(name, movieYear,pgType,runtime,theater,schedule)
 
 
 		if err != nil {
@@ -105,7 +110,7 @@ func IfMoreDates()  bool  {
 	}
 
 	prompt := promptui.Prompt{
-		Label:    "Do you want to add more dates to the movie schedule?",
+		Label:    "Do you want to add more dates to the movie schedule, input (y/n)?",
 		Validate: validate,
 	}
 
@@ -127,13 +132,58 @@ func IfMoreDates()  bool  {
 }
 
 func inputDate() string  {
-	fmt.Println("InputData called")
-	return ""
+	validate := func(input string) error {
+		re := regexp.MustCompile("(0?[1-9]|[12][0-9]|3[01])-(0?[1-9]|1[012])-((19|20)\\d\\d)")
+		if re.MatchString(input){
+			return nil
+		}
+		return errors.New("invalid date or data format")
+	}
+
+	prompt := promptui.Prompt{
+		Label:    "Schedule a date for your movie in the format: dd-mm-yyyy",
+		Validate: validate,
+	}
+
+	result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+	}
+	fmt.Println(result)
+	return  result
+
+
 
 }
 
 func inputTimes( schedule map[string][]string, date string)   {
-	schedule["10-16-2020"] = append(schedule["key"], "20:40","20:40")
+	validate := func(input string) error {
+		slice := strings.Split(input, ",")
+		re := regexp.MustCompile("^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$")
+
+		for _, time := range slice{
+			if !re.MatchString(time){
+				return fmt.Errorf("invalid time format or time for time entry: %s", time)
+			}
+		}
+		return nil
+
+
+	}
+
+	prompt := promptui.Prompt{
+		Label:    "Enter a coma separated list of times in HH:MM time format",
+		Validate: validate,
+	}
+
+	result, err := prompt.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+	}
+
+	schedule[date] = append(schedule[date], result)
 
 }
 
@@ -243,7 +293,7 @@ func SelecTheather(data []string) string  {
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
 	}
-	chosenTheater := strings.Split(result, " Floor:")[0]
+	chosenTheater := strings.Split(result, " PgType:")[0]
 
 	fmt.Printf("You choose %q\n",chosenTheater) //will be incorrect if the name movie name contains the separator string :(
 
@@ -253,8 +303,6 @@ func SelecTheather(data []string) string  {
 
 
 func Execute() {
-
-	functions.InitRouter()
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		//os.Exit(1)
